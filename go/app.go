@@ -750,6 +750,7 @@ func main() {
 	}
 
 	db, err = sql.Open("mysql", user+":"+password+"@tcp("+host+":"+strconv.Itoa(port)+")/"+dbname+"?loc=Local&parseTime=true")
+	//db, err = sql.Open("mysql", user":"++"@unix(/var/lib/mysql/mysql.sock)/%s?parseTime=true&loc=Local")
 	if err != nil {
 		log.Fatalf("Failed to connect to DB: %s.", err.Error())
 	}
