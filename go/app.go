@@ -81,6 +81,8 @@ var (
 	ErrContentNotFound  = errors.New("Content not found.")
 )
 
+var UserNameMap = make(map[int]User)
+
 func authenticate(w http.ResponseWriter, r *http.Request, email, passwd string) {
 	query := `SELECT u.id AS id, u.account_name AS account_name, u.nick_name AS nick_name, u.email AS email
 FROM users u
@@ -129,6 +131,11 @@ func authenticated(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+func getUserName(w http.ResponseWriter, userID int) *User {
+	utmp := (UserNameMap[userID])
+	return &utmp
 }
 
 func getUser(w http.ResponseWriter, userID int) *User {
@@ -234,7 +241,7 @@ func getTemplatePath(file string) string {
 func render(w http.ResponseWriter, r *http.Request, status int, file string, data interface{}) {
 	fmap := template.FuncMap{
 		"getUser": func(id int) *User {
-			return getUser(w, id)
+			return getUserName(w, id)
 		},
 		"getCurrentUser": func() *User {
 			return getCurrentUser(w, r)
@@ -707,6 +714,19 @@ func GetInitialize(w http.ResponseWriter, r *http.Request) {
 	db.Exec("DELETE FROM footprints WHERE id > 500000")
 	db.Exec("DELETE FROM entries WHERE id > 500000")
 	db.Exec("DELETE FROM comments WHERE id > 1500000")
+
+	//make usernamemap
+	rows, err := db.Query(`SELECT id, account_name, nick_name FROM users `)
+	if err != sql.ErrNoRows {
+		checkErr(err)
+	}
+	for rows.Next() {
+		var id int
+		var account_name, nick_name string
+		checkErr(rows.Scan(&id, &account_name, &nick_name))
+		UserNameMap[id] = User{AccountName: account_name, NickName: nick_name}
+	}
+	rows.Close()
 }
 
 func main() {
