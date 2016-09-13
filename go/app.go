@@ -340,15 +340,35 @@ LIMIT 10`, user.ID)
 	if err != sql.ErrNoRows {
 		checkErr(err)
 	}
+	frows, err2 := db.Query(`SELECT another FROM relations WHERE one = ?`, user.ID)
+	if err2 != sql.ErrNoRows {
+		checkErr(err2)
+	}
+	myfriends := make([]int, 10)
+	for frows.Next() {
+		var another int
+		checkErr(frows.Scan(&another))
+		myfriends = append(myfriends, another)
+	}
+
 	entriesOfFriends := make([]Entry, 0, 10)
 	for rows.Next() {
 		var id, userID, private int
 		var body string
 		var createdAt time.Time
 		checkErr(rows.Scan(&id, &userID, &private, &body, &createdAt))
-		if !isFriend(w, r, userID) {
+		// userIDはmyfriendsにあるか
+		isExist := 0
+		for _, v := range myfriends {
+			if v == userID {
+				isExist = 1
+				break
+			}
+		}
+		if isExist == 0 {
 			continue
 		}
+
 		entriesOfFriends = append(entriesOfFriends, Entry{id, userID, private == 1, strings.SplitN(body, "\n", 2)[0], strings.SplitN(body, "\n", 2)[1], createdAt})
 		if len(entriesOfFriends) >= 10 {
 			break
