@@ -156,7 +156,7 @@ func getUserFromAccount(w http.ResponseWriter, name string) *User {
 func isFriend(w http.ResponseWriter, r *http.Request, anotherID int) bool {
 	session := getSession(w, r)
 	id := session.Values["user_id"]
-	row := db.QueryRow(`SELECT COUNT(1) AS cnt FROM relations WHERE one = ? AND another = ?`, id, anotherID, anotherID, id)
+	row := db.QueryRow(`SELECT COUNT(1) AS cnt FROM relations WHERE one = ? AND another = ?`, id, anotherID)
 	cnt := new(int)
 	err := row.Scan(cnt)
 	checkErr(err)
@@ -379,25 +379,31 @@ LIMIT 10`, user.ID)
 	}
 	rows.Close()
 
-	rows, err = db.Query(`SELECT * FROM relations WHERE one = ? ORDER BY created_at DESC`, user.ID)
-	if err != sql.ErrNoRows {
-		checkErr(err)
-	}
-	friendsMap := make(map[int]time.Time)
-	for rows.Next() {
-		var id, one, another int
-		var createdAt time.Time
-		checkErr(rows.Scan(&id, &one, &another, &createdAt))
-		var friendID int
-		friendID = another
-		if _, ok := friendsMap[friendID]; !ok {
-			friendsMap[friendID] = createdAt
+	/*
+		rows, err = db.Query(`SELECT * FROM relations WHERE one = ? ORDER BY created_at DESC`, user.ID)
+		if err != sql.ErrNoRows {
+			checkErr(err)
 		}
-	}
-	friends := make([]Friend, 0, len(friendsMap))
-	for key, val := range friendsMap {
-		friends = append(friends, Friend{key, val})
-	}
+		friendsMap := make(map[int]time.Time)
+		for rows.Next() {
+			var id, one, another int
+			var createdAt time.Time
+			checkErr(rows.Scan(&id, &one, &another, &createdAt))
+			var friendID int
+			friendID = another
+			if _, ok := friendsMap[friendID]; !ok {
+				friendsMap[friendID] = createdAt
+			}
+		}
+		friends := make([]Friend, 0, len(friendsMap))
+		for key, val := range friendsMap {
+			friends = append(friends, Friend{key, val})
+		}
+	*/
+	var friend_cnt int
+	rows, err = db.Query(`SELECT count(1) as cnt FROM relations WHERE one = ? ORDER BY created_at DESC`, user.ID)
+	rows.Next()
+	checkErr(rows.Scan(&friend_cnt))
 	rows.Close()
 
 	rows, err = db.Query(`SELECT user_id, owner_id, DATE(created_at) AS date, MAX(created_at) AS updated
@@ -424,10 +430,11 @@ LIMIT 10`, user.ID)
 		CommentsForMe     []Comment
 		EntriesOfFriends  []Entry
 		CommentsOfFriends []Comment
-		Friends           []Friend
-		Footprints        []Footprint
+		//Friends           []Friend
+		Friend_cnt int
+		Footprints []Footprint
 	}{
-		*user, prof, entries, commentsForMe, entriesOfFriends, commentsOfFriends, friends, footprints,
+		*user, prof, entries, commentsForMe, entriesOfFriends, commentsOfFriends, friend_cnt, footprints,
 	})
 }
 
