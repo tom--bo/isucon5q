@@ -344,11 +344,11 @@ LIMIT 10`, user.ID)
 	if err2 != sql.ErrNoRows {
 		checkErr(err2)
 	}
-	myfriends := make([]int, 10)
+	myfriends := make(map[int]bool)
 	for frows.Next() {
 		var another int
 		checkErr(frows.Scan(&another))
-		myfriends = append(myfriends, another)
+		myfriends[another] = true
 	}
 
 	entriesOfFriends := make([]Entry, 0, 10)
@@ -358,14 +358,7 @@ LIMIT 10`, user.ID)
 		var createdAt time.Time
 		checkErr(rows.Scan(&id, &userID, &private, &body, &createdAt))
 		// userIDはmyfriendsにあるか
-		isExist := 0
-		for _, v := range myfriends {
-			if v == userID {
-				isExist = 1
-				break
-			}
-		}
-		if isExist == 0 {
+		if _, ok := myfriends[userID]; !ok {
 			continue
 		}
 
