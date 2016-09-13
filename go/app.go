@@ -156,7 +156,7 @@ func getUserFromAccount(w http.ResponseWriter, name string) *User {
 func isFriend(w http.ResponseWriter, r *http.Request, anotherID int) bool {
 	session := getSession(w, r)
 	id := session.Values["user_id"]
-	row := db.QueryRow(`SELECT COUNT(1) AS cnt FROM relations WHERE one = ? AND another = ?`, id, anotherID)
+	row := db.QueryRow(`SELECT COUNT(1) AS cnt FROM relations WHERE one = ? AND another = ?`, id, anotherID, anotherID, id)
 	cnt := new(int)
 	err := row.Scan(cnt)
 	checkErr(err)
@@ -385,7 +385,7 @@ LIMIT 10`, user.ID)
 	}
 	rows.Close()
 
-	rows, err = db.Query(`SELECT * FROM relations WHERE one = ? OR another = ? ORDER BY created_at DESC`, user.ID, user.ID)
+	rows, err = db.Query(`SELECT * FROM relations WHERE one = ? ORDER BY created_at DESC`, user.ID)
 	if err != sql.ErrNoRows {
 		checkErr(err)
 	}
@@ -395,11 +395,7 @@ LIMIT 10`, user.ID)
 		var createdAt time.Time
 		checkErr(rows.Scan(&id, &one, &another, &createdAt))
 		var friendID int
-		if one == user.ID {
-			friendID = another
-		} else {
-			friendID = one
-		}
+		friendID = another
 		if _, ok := friendsMap[friendID]; !ok {
 			friendsMap[friendID] = createdAt
 		}
