@@ -82,6 +82,7 @@ var (
 )
 
 var UserNameMap = make(map[int]User)
+var entryCache = make([]Entry, 1500)
 
 func authenticate(w http.ResponseWriter, r *http.Request, email, passwd string) {
 	query := `SELECT u.id AS id, u.account_name AS account_name, u.nick_name AS nick_name, u.email AS email
@@ -343,10 +344,6 @@ LIMIT 10`, user.ID)
 	}
 	rows.Close()
 
-	rows, err = db.Query(`SELECT * FROM entries ORDER BY created_at DESC LIMIT 1000`)
-	if err != sql.ErrNoRows {
-		checkErr(err)
-	}
 	frows, err2 := db.Query(`SELECT another FROM relations WHERE one = ?`, user.ID)
 	if err2 != sql.ErrNoRows {
 		checkErr(err2)
@@ -359,22 +356,16 @@ LIMIT 10`, user.ID)
 	}
 
 	entriesOfFriends := make([]Entry, 0, 10)
-	for rows.Next() {
-		var id, userID, private int
-		var body string
-		var createdAt time.Time
-		checkErr(rows.Scan(&id, &userID, &private, &body, &createdAt))
-		// userIDはmyfriendsにあるか
-		if _, ok := myfriends[userID]; !ok {
+	i := len(entryCache) - 1000
+	for ; i < len(entryCache); i++ {
+		if _, ok := myfriends[entryCache[i].UserID]; !ok {
 			continue
 		}
-
-		entriesOfFriends = append(entriesOfFriends, Entry{id, userID, private == 1, strings.SplitN(body, "\n", 2)[0], strings.SplitN(body, "\n", 2)[1], createdAt})
+		entriesOfFriends = append(entriesOfFriends, entryCache[i])
 		if len(entriesOfFriends) >= 10 {
 			break
 		}
 	}
-	rows.Close()
 
 	rows, err = db.Query(`SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000`)
 	if err != sql.ErrNoRows {
@@ -607,8 +598,10 @@ func PostEntry(w http.ResponseWriter, r *http.Request) {
 	} else {
 		private = 1
 	}
-	_, err := db.Exec(`INSERT INTO entries (user_id, private, body) VALUES (?,?,?)`, user.ID, private, title+"\n"+content)
+	res, err := db.Exec(`INSERT INTO entries (user_id, private, body) VALUES (?,?,?)`, user.ID, private, title+"\n"+content)
 	checkErr(err)
+	lastid, _ := res.LastInsertId()
+	entryCache = append(entryCache, Entry{int(lastid), user.ID, private == 1, title, "", time.Now()})
 	http.Redirect(w, r, "/diary/entries/"+user.AccountName, http.StatusSeeOther)
 }
 
@@ -727,6 +720,22 @@ func GetInitialize(w http.ResponseWriter, r *http.Request) {
 		UserNameMap[id] = User{AccountName: account_name, NickName: nick_name}
 	}
 	rows.Close()
+
+	rows2, err2 := db.Query(`SELECT * FROM entries ORDER BY created_at DESC LIMIT 1000`)
+	if err2 != sql.ErrNoRows {
+		checkErr(err2)
+	}
+	for rows2.Next() {
+		var id, userID, private int
+		var body string
+		var createdAt time.Time
+		checkErr(rows2.Scan(&id, &userID, &private, &body, &createdAt))
+
+		entryCache = append(entryCache, Entry{id, userID, private == 1, strings.SplitN(body, "\n", 2)[0], "", createdAt})
+
+	}
+	rows2.Close()
+
 }
 
 func main() {
