@@ -226,6 +226,11 @@ func myHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 				}
 			}
 		}()
+		//write userid
+		if se := getSession(w, r).Values["user_id"]; se != nil {
+			w.Header().Add("Userid", (strconv.Itoa(se.(int))))
+		}
+
 		fn(w, r)
 	}
 }
