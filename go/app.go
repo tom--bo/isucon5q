@@ -712,6 +712,9 @@ func GetInitialize(w http.ResponseWriter, r *http.Request) {
 	db.Exec("DELETE FROM footprints WHERE id > 500000")
 	db.Exec("DELETE FROM entries WHERE id > 500000")
 	db.Exec("DELETE FROM comments WHERE id > 1500000")
+	db.Exec("SELECT c.id AS id, c.entry_id AS entry_id, c.user_id AS user_id, c.comment AS comment, c.created_at AS created_at FROM comments c JOIN entries e ON c.entry_id = e.id WHERE e.user_id = 1504 ORDER BY c.created_at DESC LIMIT 10")
+	db.Exec("SELECT COUNT(*) AS c FROM comments WHERE entry_id = 511969")
+	db.Exec("SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000")
 
 	//make usernamemap
 	rows, err := db.Query(`SELECT id, account_name, nick_name FROM users `)
